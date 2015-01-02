@@ -25,21 +25,28 @@
 
 #include "chipmunk_private.h"
 
+#if __cplusplus
+extern "C"
+{
+#endif
+    
+    int OLG_vOnAssertFailed(const char* file, int line, const char* func, const char* x,
+                            const char* format, va_list vl);
+    
+#if __cplusplus
+}
+#endif
+
 void
 cpMessage(const char *condition, const char *file, int line, cpBool isError, cpBool isHardError, const char *message, ...)
 {
-	fprintf(stderr, (isError ? "Aborting due to Chipmunk error: " : "Chipmunk warning: "));
-	
-	va_list vargs;
-	va_start(vargs, message); {
-		vfprintf(stderr, message, vargs);
-		fprintf(stderr, "\n");
-	} va_end(vargs);
-	
-	fprintf(stderr, "\tFailed condition: %s\n", condition);
-	fprintf(stderr, "\tSource:%s:%d\n", file, line);
-	
-	if(isError) abort();
+    va_list vargs;
+    va_start(vargs, message);
+    
+    OLG_vOnAssertFailed(file, line, (isError ? "Chipmunk Error " :
+                                     isHardError ? "Chipmunk Hard Error" : "Chipmunk Warning"),
+                        condition, message, vargs);
+	va_end(vargs);
 }
 
 #define STR(s) #s

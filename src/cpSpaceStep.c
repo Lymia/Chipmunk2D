@@ -205,10 +205,10 @@ static inline cpBool
 queryReject(cpShape *a, cpShape *b)
 {
 	return (
-		// BBoxes must overlap
-		!cpBBIntersects(a->bb, b->bb)
 		// Don't collide shapes attached to the same body.
-		|| a->body == b->body
+		a->body == b->body
+		// BBoxes must overlap
+		|| !cpBBIntersects(a->bb, b->bb)
 		// Don't collide objects in the same non-zero group
 		|| (a->group && a->group == b->group)
 		// Don't collide objects that don't share at least on layer.

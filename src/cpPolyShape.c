@@ -77,7 +77,6 @@ static void
 cpPolyShapeDestroy(cpPolyShape *poly)
 {
 	cpfree(poly->verts);
-	cpfree(poly->planes);
 }
 
 static void
@@ -99,7 +98,7 @@ cpPolyShapeNearestPointQuery(cpPolyShape *poly, cpVect p, cpNearestPointQueryInf
 		cpVect v1 = verts[i];
 		cpVect closest = cpClosetPointOnSegment(p, v0, v1);
 		
-		cpFloat dist = cpvdist(p, closest);
+		cpFloat dist = cpvdistsq(p, closest);
 		if(dist < minDist){
 			minDist = dist;
 			closestPoint = closest;
@@ -108,8 +107,9 @@ cpPolyShapeNearestPointQuery(cpPolyShape *poly, cpVect p, cpNearestPointQueryInf
 		
 		v0 = v1;
 	}
-	
-	cpFloat dist = (outside ? minDist : -minDist);
+
+    minDist = cpfsqrt(minDist);
+	cpFloat dist = outside ? minDist : -minDist;
 	cpVect g = cpvmult(cpvsub(p, closestPoint), 1.0f/dist);
 	
 	info->shape = (cpShape *)poly;
@@ -212,27 +212,28 @@ static void
 setUpVerts(cpPolyShape *poly, int numVerts, const cpVect *verts, cpVect offset)
 {
 	// Fail if the user attempts to pass a concave poly, or a bad winding.
-	cpAssertHard(cpPolyValidate(verts, numVerts), "Polygon is concave or has a reversed winding. Consider using cpConvexHull() or CP_CONVEX_HULL().");
+	cpAssertSoft(cpPolyValidate(verts, numVerts), "Polygon is concave or has a reversed winding. Consider using cpConvexHull() or CP_CONVEX_HULL().");
 	
 	poly->numVerts = numVerts;
-	poly->verts = (cpVect *)cpcalloc(2*numVerts, sizeof(cpVect));
-	poly->planes = (cpSplittingPlane *)cpcalloc(2*numVerts, sizeof(cpSplittingPlane));
+    const int vertBytes = 2 * numVerts * sizeof(cpVect);
+    const int planeBytes = 2 * numVerts * sizeof(cpSplittingPlane);
+    const char* mem = (const char*)cpcalloc(1, vertBytes + planeBytes);
+	poly->verts = (cpVect *) mem;
+	poly->planes = (cpSplittingPlane *) (mem + vertBytes);
 	poly->tVerts = poly->verts + numVerts;
 	poly->tPlanes = poly->planes + numVerts;
 	
-	for(int i=0; i<numVerts; i++){
+	for(int i=0; i<numVerts; i++)
+    {
+        const int i1 = (i+1)%numVerts;
+
 		cpVect a = cpvadd(offset, verts[i]);
-		cpVect b = cpvadd(offset, verts[(i+1)%numVerts]);
+		cpVect b = cpvadd(offset, verts[i1]);
 		cpVect n = cpvnormalize(cpvperp(cpvsub(b, a)));
 
 		poly->verts[i] = a;
-		poly->planes[i].n = n;
-		poly->planes[i].d = cpvdot(n, a);
-	}
-	
-	// TODO: Why did I add this? It duplicates work from above.
-	for(int i=0; i<numVerts; i++){
-		poly->planes[i] = cpSplittingPlaneNew(poly->verts[(i - 1 + numVerts)%numVerts], poly->verts[i]);
+		poly->planes[i1].n = n;
+		poly->planes[i1].d = cpvdot(n, a);
 	}
 }
 

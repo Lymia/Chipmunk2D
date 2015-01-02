@@ -158,12 +158,14 @@ struct Edge {
 	cpVect n;
 };
 
+#if 0
 static inline struct Edge
 EdgeNew(cpVect va, cpVect vb, cpHashValue ha, cpHashValue hb, cpFloat r)
 {
 	struct Edge edge = {{va, ha}, {vb, hb}, r, cpvnormalize(cpvperp(cpvsub(vb, va)))};
 	return edge;
 }
+#endif
 
 static struct Edge
 SupportEdgeForPoly(const cpPolyShape *poly, const cpVect n)
