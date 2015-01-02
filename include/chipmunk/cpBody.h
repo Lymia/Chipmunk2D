@@ -195,6 +195,8 @@ CP_DefineBodyStructProperty(cpFloat, v_limit, VelLimit)
 CP_DefineBodyStructProperty(cpFloat, w_limit, AngVelLimit)
 CP_DefineBodyStructProperty(cpDataPointer, data, UserData)
 
+void cpBodySetPosAngle(cpBody *body, cpVect pos, cpFloat a);
+
 /// Default Integration functions.
 void cpBodyUpdateVelocity(cpBody *body, cpVect gravity, cpFloat damping, cpFloat dt);
 void cpBodyUpdatePosition(cpBody *body, cpFloat dt);

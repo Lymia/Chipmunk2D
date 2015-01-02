@@ -277,6 +277,8 @@ void cpSpaceReindexShapesForBody(cpSpace *space, cpBody *body);
 /// Switch the space to use a spatial has as it's spatial index.
 void cpSpaceUseSpatialHash(cpSpace *space, cpFloat dim, int count);
 
+void cpSpaceUseBBTree(cpSpace *space);
+
 /// Step the space forward in time by @c dt.
 void cpSpaceStep(cpSpace *space, cpFloat dt);
 
