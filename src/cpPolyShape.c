@@ -209,11 +209,8 @@ cpPolyShapeGetRadius(const cpShape *shape)
 
 
 static void
-setUpVerts(cpPolyShape *poly, int numVerts, const cpVect *verts, cpVect offset)
+setUpBuffers(cpPolyShape *poly, int numVerts)
 {
-	// Fail if the user attempts to pass a concave poly, or a bad winding.
-	cpAssertSoft(cpPolyValidate(verts, numVerts), "Polygon is concave or has a reversed winding. Consider using cpConvexHull() or CP_CONVEX_HULL().");
-	
 	poly->numVerts = numVerts;
     const int vertBytes = 2 * numVerts * sizeof(cpVect);
     const int planeBytes = 2 * numVerts * sizeof(cpSplittingPlane);
@@ -222,6 +219,13 @@ setUpVerts(cpPolyShape *poly, int numVerts, const cpVect *verts, cpVect offset)
 	poly->planes = (cpSplittingPlane *) (mem + vertBytes);
 	poly->tVerts = poly->verts + numVerts;
 	poly->tPlanes = poly->planes + numVerts;
+}
+
+static void
+setUpVerts(cpPolyShape *poly, int numVerts, const cpVect *verts, cpVect offset)
+{
+	// Fail if the user attempts to pass a concave poly, or a bad winding.
+	cpAssertSoft(cpPolyValidate(verts, numVerts), "Polygon is concave or has a reversed winding. Consider using cpConvexHull() or CP_CONVEX_HULL().");
 	
 	for(int i=0; i<numVerts; i++)
     {
@@ -246,6 +250,7 @@ cpPolyShapeInit(cpPolyShape *poly, cpBody *body, int numVerts, const cpVect *ver
 cpPolyShape *
 cpPolyShapeInit2(cpPolyShape *poly, cpBody *body, int numVerts, const cpVect *verts, cpVect offset, cpFloat radius)
 {
+    setUpBuffers(poly, numVerts);
 	setUpVerts(poly, numVerts, verts, offset);
 	cpShapeInit((cpShape *)poly, &polyClass, body);
 	poly->r = radius;
@@ -315,11 +320,15 @@ cpBoxShapeNew3(cpBody *body, cpBB box, cpFloat radius)
 // Unsafe API (chipmunk_unsafe.h)
 
 void
-cpPolyShapeSetVerts(cpShape *shape, int numVerts, cpVect *verts, cpVect offset)
+cpPolyShapeSetVerts(cpShape *shape, int numVerts, const cpVect *verts, cpVect offset)
 {
 	cpAssertHard(shape->klass == &polyClass, "Shape is not a poly shape.");
-	cpPolyShapeDestroy((cpPolyShape *)shape);
-	setUpVerts((cpPolyShape *)shape, numVerts, verts, offset);
+    cpPolyShape *poly = (cpPolyShape *)shape;
+    if (numVerts != poly->numVerts) {
+        cpPolyShapeDestroy(poly);
+        setUpBuffers(poly, numVerts);
+    }
+	setUpVerts(poly, numVerts, verts, offset);
 }
 
 void
