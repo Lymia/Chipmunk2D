@@ -373,6 +373,28 @@ query_helper(cpSpaceHash *hash, cpSpaceHashBin **bin_ptr, void *obj, cpSpatialIn
 	}
 }
 
+static inline void
+collideShapes_helper(cpSpaceHash *hash, cpSpaceHashBin **bin_ptr, cpShape *obj, cpSpace *space)
+{
+	restart:
+	for(cpSpaceHashBin *bin = *bin_ptr; bin; bin = bin->next){
+		cpHandle *hand = bin->handle;
+		void *other = hand->obj;
+		
+		if(hand->stamp == hash->stamp || obj == other){
+			continue;
+		} else if(other){
+            cpSpaceCollideShapes(obj, other, 0, space);
+			hand->stamp = hash->stamp;
+		} else {
+			// The object for this handle has been removed
+			// cleanup this cell and restart the query
+			remove_orphaned_handles(hash, bin_ptr);
+			goto restart; // GCC not smart enough/able to tail call an inlined function.
+		}
+	}
+}
+
 static void
 cpSpaceHashQuery(cpSpaceHash *hash, void *obj, cpBB bb, cpSpatialIndexQueryFunc func, void *data)
 {
@@ -399,8 +421,7 @@ cpSpaceHashQuery(cpSpaceHash *hash, void *obj, cpBB bb, cpSpatialIndexQueryFunc 
 // Similar to struct eachPair above.
 typedef struct queryRehashContext {
 	cpSpaceHash *hash;
-	cpSpatialIndexQueryFunc func;
-	void *data;
+    cpSpace     *data;
 } queryRehashContext;
 
 // Hashset iterator func used with cpSpaceHashQueryRehash().
@@ -408,14 +429,13 @@ static void
 queryRehash_helper(cpHandle *hand, queryRehashContext *context)
 {
 	cpSpaceHash *hash = context->hash;
-	cpSpatialIndexQueryFunc func = context->func;
-	void *data = context->data;
+	cpSpace *data = context->data;
 
 	cpFloat dim = hash->celldim;
 	int n = hash->numcells;
 
-	void *obj = hand->obj;
-	cpBB bb = hash->spatialIndex.bbfunc(obj);
+	cpShape *obj = hand->obj;
+	cpBB bb = cpShapeGetBB(obj);
 
 	int l = floor_int(bb.l/dim);
 	int r = floor_int(bb.r/dim);
@@ -432,7 +452,7 @@ queryRehash_helper(cpHandle *hand, queryRehashContext *context)
 			if(containsHandle(bin, hand)) continue;
 			
 			cpHandleRetain(hand); // this MUST be done first in case the object is removed in func()
-			query_helper(hash, &bin, obj, func, data);
+            collideShapes_helper(hash, &bin, obj, data);
 			
 			cpSpaceHashBin *newBin = getEmptyBin(hash);
 			newBin->handle = hand;
@@ -446,18 +466,19 @@ queryRehash_helper(cpHandle *hand, queryRehashContext *context)
 }
 
 static void
-cpSpaceHashReindexQuery(cpSpaceHash *hash, cpSpatialIndexQueryFunc func, void *data)
+cpSpaceHashReindexQuery(cpSpaceHash *hash, cpSpace *data)
 {
 	clearTable(hash);
 	
-	queryRehashContext context = {hash, func, data};
+	queryRehashContext context = {hash, data};
 	cpHashSetEach(hash->handleSet, (cpHashSetIteratorFunc)queryRehash_helper, &context);
 	
-	cpSpatialIndexCollideStatic((cpSpatialIndex *)hash, hash->spatialIndex.staticIndex, func, data);
+	cpSpatialIndexCollideStatic((cpSpatialIndex *)hash, hash->spatialIndex.staticIndex,
+                                (cpSpatialIndexQueryFunc)cpSpaceCollideShapes, data);
 }
 
 static inline cpFloat
-segmentQuery_helper(cpSpaceHash *hash, cpSpaceHashBin **bin_ptr, void *obj, cpSpatialIndexSegmentQueryFunc func, void *data)
+segmentQuery_helper(cpSpaceHash *hash, cpSpaceHashBin **bin_ptr, struct SegmentQueryContext *obj, void *data)
 {
 	cpFloat t = 1.0f;
 	 
@@ -470,7 +491,7 @@ segmentQuery_helper(cpSpaceHash *hash, cpSpaceHashBin **bin_ptr, void *obj, cpSp
 		if(hand->stamp == hash->stamp){
 			continue;
 		} else if(other){
-			t = cpfmin(t, func(obj, other, data));
+			t = cpfmin(t, SegmentQuery(obj, other, data));
 			hand->stamp = hash->stamp;
 		} else {
 			// The object for this handle has been removed
@@ -485,7 +506,7 @@ segmentQuery_helper(cpSpaceHash *hash, cpSpaceHashBin **bin_ptr, void *obj, cpSp
 
 // modified from http://playtechs.blogspot.com/2007/03/raytracing-on-grid.html
 static void
-cpSpaceHashSegmentQuery(cpSpaceHash *hash, void *obj, cpVect a, cpVect b, cpFloat t_exit, cpSpatialIndexSegmentQueryFunc func, void *data)
+cpSpaceHashSegmentQuery(cpSpaceHash *hash, struct SegmentQueryContext *obj, cpVect a, cpVect b, cpFloat t_exit, void *data)
 {
 	a = cpvmult(a, 1.0f/hash->celldim);
 	b = cpvmult(b, 1.0f/hash->celldim);
@@ -526,7 +547,7 @@ cpSpaceHashSegmentQuery(cpSpaceHash *hash, void *obj, cpVect a, cpVect b, cpFloa
 
 	while(t < t_exit){
 		cpHashValue idx = hash_func(cell_x, cell_y, n);
-		t_exit = cpfmin(t_exit, segmentQuery_helper(hash, &table[idx], obj, func, data));
+		t_exit = cpfmin(t_exit, segmentQuery_helper(hash, &table[idx], obj, data));
 
 		if (next_v < next_h){
 			cell_y += y_inc;

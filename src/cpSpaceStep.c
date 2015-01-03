@@ -205,10 +205,10 @@ static inline cpBool
 queryReject(cpShape *a, cpShape *b)
 {
 	return (
-		// BBoxes must overlap
-		!cpBBIntersects(a->bb, b->bb)
 		// Don't collide shapes attached to the same body.
-		|| a->body == b->body
+		a->body == b->body
+		// BBoxes must overlap
+		|| !cpBBIntersects(a->bb, b->bb)
 		// Don't collide objects in the same non-zero group
 		|| (a->group && a->group == b->group)
 		// Don't collide objects that don't share at least on layer.
@@ -362,7 +362,7 @@ cpSpaceStep(cpSpace *space, cpFloat dt)
 		// Find colliding pairs.
 		cpSpacePushFreshContactBuffer(space);
 		cpSpatialIndexEach(space->activeShapes, (cpSpatialIndexIteratorFunc)cpShapeUpdateFunc, NULL);
-		cpSpatialIndexReindexQuery(space->activeShapes, (cpSpatialIndexQueryFunc)cpSpaceCollideShapes, space);
+		cpSpatialIndexReindexQuery(space->activeShapes, space);
 	} cpSpaceUnlock(space, cpFalse);
 	
 	// Rebuild the contact graph (and detect sleeping components if sleeping is enabled)

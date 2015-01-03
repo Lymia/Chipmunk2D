@@ -599,3 +599,20 @@ cpSpaceUseSpatialHash(cpSpace *space, cpFloat dim, int count)
 	space->staticShapes = staticShapes;
 	space->activeShapes = activeShapes;
 }
+
+void
+cpSpaceUseBBTree(cpSpace *space)
+{
+    cpSpatialIndex *staticShapes = cpBBTreeNew((cpSpatialIndexBBFunc)cpShapeGetBB, NULL);
+	cpSpatialIndex *activeShapes = cpBBTreeNew((cpSpatialIndexBBFunc)cpShapeGetBB, staticShapes);
+
+    cpSpatialIndexEach(space->staticShapes, (cpSpatialIndexIteratorFunc)copyShapes, staticShapes);
+	cpSpatialIndexEach(space->activeShapes, (cpSpatialIndexIteratorFunc)copyShapes, activeShapes);
+
+    cpSpatialIndexFree(space->staticShapes);
+	cpSpatialIndexFree(space->activeShapes);
+	
+	space->staticShapes = staticShapes;
+	space->activeShapes = activeShapes;
+}
+

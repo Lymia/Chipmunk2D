@@ -149,14 +149,7 @@ cpSpaceNearestPointQueryNearest(cpSpace *space, cpVect point, cpFloat maxDistanc
 
 //MARK: Segment Query Functions
 
-struct SegmentQueryContext {
-	cpVect start, end;
-	cpLayers layers;
-	cpGroup group;
-	cpSpaceSegmentQueryFunc func;
-};
-
-static cpFloat
+cpFloat
 SegmentQuery(struct SegmentQueryContext *context, cpShape *shape, void *data)
 {
 	cpSegmentQueryInfo info;
@@ -165,10 +158,10 @@ SegmentQuery(struct SegmentQueryContext *context, cpShape *shape, void *data)
 		!(shape->group && context->group == shape->group) && (context->layers&shape->layers) &&
 		cpShapeSegmentQuery(shape, context->start, context->end, &info)
 	){
-		context->func(shape, info.t, info.n, data);
+		context->t = context->func(shape, info.t, info.n, data);
 	}
 	
-	return 1.0f;
+	return context->t;
 }
 
 void
@@ -177,30 +170,26 @@ cpSpaceSegmentQuery(cpSpace *space, cpVect start, cpVect end, cpLayers layers, c
 	struct SegmentQueryContext context = {
 		start, end,
 		layers, group,
+        1.0,
 		func,
 	};
 	
 	cpSpaceLock(space); {
-    cpSpatialIndexSegmentQuery(space->staticShapes, &context, start, end, 1.0f, (cpSpatialIndexSegmentQueryFunc)SegmentQuery, data);
-    cpSpatialIndexSegmentQuery(space->activeShapes, &context, start, end, 1.0f, (cpSpatialIndexSegmentQueryFunc)SegmentQuery, data);
+    cpSpatialIndexSegmentQuery(space->staticShapes, &context, start, end, context.t, data);
+    cpSpatialIndexSegmentQuery(space->activeShapes, &context, start, end, context.t, data);
 	} cpSpaceUnlock(space, cpTrue);
 }
 
 static cpFloat
-SegmentQueryFirst(struct SegmentQueryContext *context, cpShape *shape, cpSegmentQueryInfo *out)
+SegmentQueryFirst(cpShape *shape, cpFloat t, cpVect n, void *data)
 {
-	cpSegmentQueryInfo info;
-	
-	if(
-		!(shape->group && context->group == shape->group) && (context->layers&shape->layers) &&
-		!shape->sensor &&
-		cpShapeSegmentQuery(shape, context->start, context->end, &info) &&
-		info.t < out->t
-	){
-		(*out) = info;
-	}
-	
-	return out->t;
+    cpSegmentQueryInfo *out = data;
+    if (!shape->sensor && t < out->t)
+    {
+        cpSegmentQueryInfo info = { shape, t, n };
+        (*out) = info;
+    }
+    return out->t;
 }
 
 cpShape *
@@ -216,11 +205,12 @@ cpSpaceSegmentQueryFirst(cpSpace *space, cpVect start, cpVect end, cpLayers laye
 	struct SegmentQueryContext context = {
 		start, end,
 		layers, group,
-		NULL
+        1.0,
+		SegmentQueryFirst
 	};
 	
-	cpSpatialIndexSegmentQuery(space->staticShapes, &context, start, end, 1.0f, (cpSpatialIndexSegmentQueryFunc)SegmentQueryFirst, out);
-	cpSpatialIndexSegmentQuery(space->activeShapes, &context, start, end, out->t, (cpSpatialIndexSegmentQueryFunc)SegmentQueryFirst, out);
+	cpSpatialIndexSegmentQuery(space->staticShapes, &context, start, end, 1.0f, out);
+	cpSpatialIndexSegmentQuery(space->activeShapes, &context, start, end, out->t, out);
 	
 	return out->shape;
 }
