@@ -32,6 +32,7 @@ extern "C"
     
     int OLG_vOnAssertFailed(const char* file, int line, const char* func, const char* x,
                             const char* format, va_list vl);
+    void ReportC(const char *str_);
     
 #if __cplusplus
 }
@@ -49,10 +50,30 @@ cpMessage(const char *condition, const char *file, int line, cpBool isError, cpB
 	va_end(vargs);
 }
 
+void cpInfo(const char *message, ...)
+{
+    va_list vargs;
+    va_start(vargs, message);
+
+    char buf[256];
+    char *ptr = buf;
+    const char *pfx = "[chipmunk] ";
+    ptr = strncpy(ptr, pfx, strlen(pfx));
+    vsnprintf(ptr, 256-strlen(pfx), message, vargs);
+    /* *ptr++ = '\n'; */
+    /* *ptr++ = '\0'; */
+
+    ReportC(buf);
+
+    va_end(vargs);
+}
+
+
 #define STR(s) #s
+
 #define XSTR(s) STR(s)
 
-const char *cpVersionString = XSTR(CP_VERSION_MAJOR)"."XSTR(CP_VERSION_MINOR)"."XSTR(CP_VERSION_RELEASE);
+const char *cpVersionString = XSTR(CP_VERSION_MAJOR) "." XSTR(CP_VERSION_MINOR) "." XSTR(CP_VERSION_RELEASE);
 
 void
 cpInitChipmunk(void)
@@ -313,7 +334,7 @@ void cpSpaceNearestPointQuery_b(cpSpace *space, cpVect point, cpFloat maxDistanc
 
 static void SegmentQueryIteratorFunc(cpShape *shape, cpFloat t, cpVect n, cpSpaceSegmentQueryBlock block){block(shape, t, n);}
 void cpSpaceSegmentQuery_b(cpSpace *space, cpVect start, cpVect end, cpLayers layers, cpGroup group, cpSpaceSegmentQueryBlock block){
-	cpSpaceSegmentQuery(space, start, end, layers, group, (cpSpaceSegmentQueryFunc)SegmentQueryIteratorFunc, block);
+	cpSpaceSegmentQuery(space, start, end, layers, group, CP_NO_GROUP, (cpSpaceSegmentQueryFunc)SegmentQueryIteratorFunc, block);
 }
 
 void cpSpaceBBQuery_b(cpSpace *space, cpBB bb, cpLayers layers, cpGroup group, cpSpaceBBQueryBlock block){
@@ -328,4 +349,4 @@ cpBool cpSpaceShapeQuery_b(cpSpace *space, cpShape *shape, cpSpaceShapeQueryBloc
 #endif
 #endif
 
-#include "chipmunk_ffi.h"
+/* #include "chipmunk_ffi.h" */

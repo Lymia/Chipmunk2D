@@ -21,7 +21,7 @@
 
 #include "chipmunk_private.h"
 
-static inline cpSpatialIndexClass *Klass();
+static inline cpSpatialIndexClass *Klass(void);
 
 //MARK: Basic Structures
 
@@ -196,7 +196,7 @@ cpSweep1DSegmentQuery(cpSweep1D *sweep, struct SegmentQueryContext *obj, cpVect 
 	TableCell *table = sweep->table;
 	for(int i=0, count=sweep->num; i<count; i++){
 		TableCell cell = table[i];
-		if(BoundsOverlap(bounds, cell.bounds)) SegmentQuery(obj, cell.obj, data);
+		if(BoundsOverlap(bounds, cell.bounds)) SegmentQuery(obj, (cpShape*)cell.obj, data);
 	}
 }
 
@@ -223,7 +223,7 @@ cpSweep1DReindexQuery(cpSweep1D *sweep, cpSpace *data)
 		cpFloat max = cell.bounds.max;
 		
 		for(int j=i+1; table[j].bounds.min < max && j<count; j++){
-			cpSpaceCollideShapes(cell.obj, table[j].obj, 0, data);
+			cpSpaceCollideShapes((cpShape*)cell.obj, (cpShape*)table[j].obj, 0, data);
 		}
 	}
 	

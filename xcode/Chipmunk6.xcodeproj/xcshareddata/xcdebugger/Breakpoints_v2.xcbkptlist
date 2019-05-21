@@ -11,6 +11,8 @@
             continueAfterRunningActions = "No"
             symbolName = "cpMessage"
             moduleName = "">
+            <Locations>
+            </Locations>
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy

@@ -24,7 +24,7 @@
 
 #include "chipmunk_private.h"
 
-static inline cpSpatialIndexClass *Klass();
+static inline cpSpatialIndexClass *Klass(void);
 
 typedef struct Node Node;
 typedef struct Pair Pair;
@@ -367,7 +367,7 @@ static cpFloat
 SubtreeSegmentQuery(Node *subtree, struct SegmentQueryContext *obj, cpVect a, cpVect b, cpFloat t_exit, void *data)
 {
 	if(NodeIsLeaf(subtree)){
-        return SegmentQuery(obj, subtree->obj, data);
+        return SegmentQuery(obj, (cpShape*)subtree->obj, data);
 	} else {
 		cpFloat t_a = cpBBSegmentQuery(subtree->A->bb, a, b);
 		cpFloat t_b = cpBBSegmentQuery(subtree->B->bb, a, b);

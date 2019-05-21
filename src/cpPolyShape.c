@@ -25,7 +25,8 @@
 cpPolyShape *
 cpPolyShapeAlloc(void)
 {
-	return (cpPolyShape *)cpcalloc(1, sizeof(cpPolyShape));
+	/* return (cpPolyShape *)cpcalloc(1, sizeof(cpPolyShape)); */
+    return (cpPolyShape *)cpShapePoolAlloc(sizeof(cpPolyShape));
 }
 
 static cpBB
@@ -209,12 +210,13 @@ cpPolyShapeGetRadius(const cpShape *shape)
 
 
 static void
-setUpBuffers(cpPolyShape *poly, int numVerts)
+setUpBuffers(cpPolyShape *poly, int numVerts, void *buf)
 {
 	poly->numVerts = numVerts;
     const int vertBytes = 2 * numVerts * sizeof(cpVect);
     const int planeBytes = 2 * numVerts * sizeof(cpSplittingPlane);
-    const char* mem = (const char*)cpcalloc(1, vertBytes + planeBytes);
+    const int bytes = vertBytes + planeBytes;
+    const char* mem = (const char*) (buf ? cprealloc(buf, bytes) : cpcalloc(1, bytes));
 	poly->verts = (cpVect *) mem;
 	poly->planes = (cpSplittingPlane *) (mem + vertBytes);
 	poly->tVerts = poly->verts + numVerts;
@@ -250,7 +252,7 @@ cpPolyShapeInit(cpPolyShape *poly, cpBody *body, int numVerts, const cpVect *ver
 cpPolyShape *
 cpPolyShapeInit2(cpPolyShape *poly, cpBody *body, int numVerts, const cpVect *verts, cpVect offset, cpFloat radius)
 {
-    setUpBuffers(poly, numVerts);
+    setUpBuffers(poly, numVerts, NULL);
 	setUpVerts(poly, numVerts, verts, offset);
 	cpShapeInit((cpShape *)poly, &polyClass, body);
 	poly->r = radius;
@@ -325,8 +327,7 @@ cpPolyShapeSetVerts(cpShape *shape, int numVerts, const cpVect *verts, cpVect of
 	cpAssertHard(shape->klass == &polyClass, "Shape is not a poly shape.");
     cpPolyShape *poly = (cpPolyShape *)shape;
     if (numVerts != poly->numVerts) {
-        cpPolyShapeDestroy(poly);
-        setUpBuffers(poly, numVerts);
+        setUpBuffers(poly, numVerts, poly->verts);
     }
 	setUpVerts(poly, numVerts, verts, offset);
 }

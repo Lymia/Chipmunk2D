@@ -55,6 +55,7 @@ struct SegmentQueryContext {
 	cpVect start, end;
 	cpLayers layers;
 	cpGroup group;
+    cpGroup group2;
     cpFloat t;
 	cpSpaceSegmentQueryFunc func;
 };
